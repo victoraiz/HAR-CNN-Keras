@@ -13,19 +13,20 @@ Feel free to use this code and site this repositry if you use it for your report
 # importing libraries and dependecies 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy import stats
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout
+import sys
+#from keras.models import Sequential
+#from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout
 #from keras import backend as K
-from keras import optimizers
+#from keras import optimizers
 #K.set_image_dim_ordering('th')
 # setting up a random seed for reproducibility
 random_seed = 611
 np.random.seed(random_seed)
 
 # matplotlib inline
-plt.style.use('ggplot')
+#plt.style.use('ggplot')
 # defining function for loading the dataset
 def readData(filePath):
     # attributes of the dataset
@@ -67,6 +68,7 @@ def segment_signal(data, window_size = 90):
     segments = np.empty((0,window_size,3))
     labels= np.empty((0))
     for (start, end) in windows(data['timestamp'],window_size):
+        print(start)
         x = data['x-axis'][start:end]
         y = data['y-axis'][start:end]
         z = data['z-axis'][start:end]
@@ -74,14 +76,19 @@ def segment_signal(data, window_size = 90):
             segments = np.vstack([segments,np.dstack([x,y,z])])
             labels = np.append(labels,stats.mode(data['activity'][start:end])[0][0])
     return segments, labels
+
+def save_data(trainX, trainY, prefix):
+    np.save(prefix+'_x.npy', np.squeeze(trainX.transpose([0, 2, 1, 3])))
+    np.save(prefix+'_y.npy', trainY.argmax(axis=1))
+
 ''' Main Code '''
 # # # # # # # # #   reading the data   # # # # # # # # # # 
 # Path of file #
-dataset = readData('/home/shahnawaz/Documents/HAR/actitracker_raw.txt')
+dataset = readData('actitracker_raw.txt')
 # plotting a subset of the data to visualize
 for activity in np.unique(dataset['activity']):
     subset = dataset[dataset['activity']==activity][:180]
-    plotActivity(activity,subset)
+    #plotActivity(activity,subset)
 # segmenting the signal in overlapping windows of 90 samples with 50% overlap
 segments, labels = segment_signal(dataset) 
 #categorically defining the classes of the activities
@@ -119,6 +126,18 @@ trainX = np.nan_to_num(trainX)
 testX = np.nan_to_num(testX)
 trainY = labels[trainSplit]
 testY = labels[~trainSplit]
+
+reshapedSegments = trainX
+labels = trainY
+trainSplit = np.random.rand(len(reshapedSegments)) < trainSplitRatio
+trainX = reshapedSegments[trainSplit]
+valX = reshapedSegments[~trainSplit]
+trainY = labels[trainSplit]
+valY = labels[~trainSplit]
+save_data(trainX, trainY, 'har_train')
+save_data(valX, valY, 'har_val')
+save_data(testX, testY, 'har_test')
+sys.exit(0)
 
 def cnnModel():
     model = Sequential()
