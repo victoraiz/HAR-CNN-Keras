@@ -82,17 +82,43 @@ def save_data(trainX, trainY, prefix):
     np.save(prefix+'_y.npy', trainY.argmax(axis=1))
 
 ''' Main Code '''
+
+activity_label = {'downstairs': 0,  'jogging': 1,   'sitting': 2,  'standing':3,  'upstairs': 4, 'walking': 5}
+
+raw_file = sys.argv[1] # 'actitracker_raw.txt'
+output_prefix = sys.argv[2] # har
+window_size = int(sys.argv[3]) # 90
+all_data = sys.argv[4] == 'true'
+
 # # # # # # # # #   reading the data   # # # # # # # # # # 
 # Path of file #
-dataset = readData('actitracker_raw.txt')
+dataset = readData(raw_file)
 # plotting a subset of the data to visualize
 for activity in np.unique(dataset['activity']):
     subset = dataset[dataset['activity']==activity][:180]
     #plotActivity(activity,subset)
 # segmenting the signal in overlapping windows of 90 samples with 50% overlap
-segments, labels = segment_signal(dataset) 
+segments, labels = segment_signal(dataset, window_size=window_size)
+# we need to know the order of he labels right
+unique_labels = []
+for l in labels:
+    if l not in unique_labels:
+        unique_labels.append(l)
+        assert l.lower() in activity_label
+
+print('Labels', sorted(unique_labels))
 #categorically defining the classes of the activities
-labels = np.asarray(pd.get_dummies(labels),dtype = np.int8)
+# we need to know the mapping of string to index
+#labels = np.asarray(pd.get_dummies(labels),dtype = np.int8)
+new_labels = []
+for l in labels:
+    assert l in activity_label
+    new_labels.append(activity_label[l])
+labels = np.array(new_labels)
+b = np.zeros((labels.size, len(activity_label)+1))
+b[np.arange(labels.size), labels] = 1
+labels = b
+
 # defining parameters for the input and network layers
 # we are treating each segmeent or chunk as a 2D image (90 X 3)
 numOfRows = segments.shape[1]
@@ -118,6 +144,10 @@ numClasses = labels.shape[1]
 dropOutRatio = 0.2
 # reshaping the data for network input
 reshapedSegments = segments.reshape(segments.shape[0], numOfRows, numOfColumns,1)
+if all_data:
+    save_data(reshapedSegments, labels, f'{output_prefix}_train')
+    sys.exit(0)
+
 # splitting in training and testing data
 trainSplit = np.random.rand(len(reshapedSegments)) < trainSplitRatio
 trainX = reshapedSegments[trainSplit]
@@ -134,9 +164,9 @@ trainX = reshapedSegments[trainSplit]
 valX = reshapedSegments[~trainSplit]
 trainY = labels[trainSplit]
 valY = labels[~trainSplit]
-save_data(trainX, trainY, 'har_train')
-save_data(valX, valY, 'har_val')
-save_data(testX, testY, 'har_test')
+save_data(trainX, trainY, f'{output_prefix}_train')
+save_data(valX, valY, f'{output_prefix}_val')
+save_data(testX, testY, f'{output_prefix}_test')
 sys.exit(0)
 
 def cnnModel():
