@@ -15,19 +15,26 @@ import os, sys
 import glob
 import pandas as pd
 import numpy as np
+import re
 
 output = sys.argv[1] # 'selfBACK_t.csv'
+input_glob = sys.argv[2] # 'haitao2/*.txt'
 sample = 1 # keep 100 hz
 activities = ['downstairs',  'jogging',   'sitting',  'standing',  'upstairs', 'walking',]
 activity_index = {'jogging': 0, 'walking': 1, 'upstairs': 2, 'downstairs': 3, 'sitting': 4, 'standing': 5, 'lying': 8}
 
-files = glob.glob('haitao2/*.txt')
-files = sorted(files, key=lambda x: str(activity_index.get((os.path.basename(x).split('01')[0]).lower(), 9)))
+files = glob.glob(input_glob)
+files_activity = {}
+pattern = r'^([a-zA-Z]+).*$'
+for f in files:
+    activity = re.search(pattern, os.path.basename(f)).group(1).lower()
+    files_activity[f] = activity
+files = sorted(files, key=lambda x: str(activity_index.get(files_activity[x], 9)))
 
 frames = []
 for f in files:
-    print(f)
-    activity = (os.path.basename(f).split('01')[0]).lower()
+    activity = files_activity[f]
+    print(f, activity)
     if not activity in activities:
         continue
     user_id = "1"
