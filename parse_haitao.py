@@ -43,7 +43,9 @@ for f in files:
     data = pd.read_csv(f, names=columnNames, na_values=',', header=None, skiprows=None, delim_whitespace=True)
     data['user_id'] = user_id
     data['activity'] = activity
-    data['x-axis'] = data['x-axis'] * 0.244 / 1000 * 9.81
+    data['y-axis'] = data['y-axis'].apply(lambda x: -x if x <= -2000 else x)
+    
+    data['x-axis'] = data['x-axis'] * 0.244 / 1000 * 9.81 # *10!
     data['y-axis'] = data['y-axis'] * 0.244 / 1000 * 9.81
     data['z-axis'] = data['z-axis'] * 0.244 / 1000 * 9.81
     data = data[data.index % 5 != 0]
