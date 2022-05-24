@@ -17,17 +17,25 @@ import pandas as pd
 import numpy as np
 import re
 
-output = sys.argv[1] # 'selfBACK_t.csv'
-input_glob = sys.argv[2] # 'haitao2/*.txt'
-sample = 1 # keep 100 hz
 activities = ['downstairs',  'jogging',   'sitting',  'standing',  'upstairs', 'walking',]
 activity_index = {'jogging': 0, 'walking': 1, 'upstairs': 2, 'downstairs': 3, 'sitting': 4, 'standing': 5, 'lying': 8}
 
+def get_activity(file):
+    just_file = os.path.basename(file).lower()
+    for activity in activities:
+        if activity in just_file:
+            return activity
+    assert False, f"bad file name {file}"
+
+output = sys.argv[1] # 'selfBACK_t.csv'
+input_glob = sys.argv[2] # 'haitao2/*.txt'
+sample = 1 # keep 100 hz
+
 files = glob.glob(input_glob)
 files_activity = {}
-pattern = r'^([a-zA-Z]+).*$'
+# pattern = r'^([a-zA-Z]+).*$'
 for f in files:
-    activity = re.search(pattern, os.path.basename(f)).group(1).lower()
+    activity = get_activity(f)
     files_activity[f] = activity
 files = sorted(files, key=lambda x: str(activity_index.get(files_activity[x], 9)))
 
@@ -45,9 +53,9 @@ for f in files:
     data['activity'] = activity
     data['y-axis'] = data['y-axis'].apply(lambda x: -x if x <= -2000 else x)
     
-    data['x-axis'] = data['x-axis'] * 0.244 / 1000 * 9.81 # *10!
-    data['y-axis'] = data['y-axis'] * 0.244 / 1000 * 9.81
-    data['z-axis'] = data['z-axis'] * 0.244 / 1000 * 9.81
+    data['x-axis'] = data['x-axis'] * 0.244 / 1000 * 10 #9.81 # *10!
+    data['y-axis'] = data['y-axis'] * 0.244 / 1000 * 10 #9.81
+    data['z-axis'] = data['z-axis'] * 0.244 / 1000 * 10 # 9.81
     data = data[data.index % 5 != 0]
     frames.append(data)
 result = pd.concat(frames)
