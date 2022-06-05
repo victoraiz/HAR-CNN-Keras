@@ -89,6 +89,7 @@ raw_file = sys.argv[1] # 'actitracker_raw.txt'
 output_prefix = sys.argv[2] # har
 window_size = int(sys.argv[3]) # 90
 all_data = sys.argv[4] == 'true'
+normalize = sys.argv[5] == 'normalize' if len(sys.argv) > 5 else False
 
 # # # # # # # # #   reading the data   # # # # # # # # # # 
 # Path of file #
@@ -99,12 +100,22 @@ for activity in np.unique(dataset['activity']):
     #plotActivity(activity,subset)
 # segmenting the signal in overlapping windows of 90 samples with 50% overlap
 segments, labels = segment_signal(dataset, window_size=window_size)
+if normalize:
+    # (1629, 90, 3)
+    #data_abs = np.abs(segments)
+    #mean_90 = np.mean(data_abs, axis=1, keepdims=True)
+    #max_90 = np.max(data_abs, axis=1, keepdims=True)
+    #avg_90 = (mean_90 + max_90) / 2
+    #segments /= max_90
+
+    mean_90 = np.abs(np.mean(segments, axis=1, keepdims=True))
+    segments = np.where(mean_90 > 6, segments/2, segments)
 # we need to know the order of he labels right
 unique_labels = []
 for l in labels:
     if l not in unique_labels:
-        unique_labels.append(l)
-        assert l.lower() in activity_label
+        unique_labels.append(l.lower())
+        assert l.lower() in activity_label, l.lower()
 
 print('Labels', sorted(unique_labels))
 #categorically defining the classes of the activities
@@ -112,6 +123,7 @@ print('Labels', sorted(unique_labels))
 #labels = np.asarray(pd.get_dummies(labels),dtype = np.int8)
 new_labels = []
 for l in labels:
+    l = l.lower()
     assert l in activity_label
     new_labels.append(activity_label[l])
 labels = np.array(new_labels)
