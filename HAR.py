@@ -32,6 +32,7 @@ def readData(filePath):
     # attributes of the dataset
     columnNames = ['user_id','activity','timestamp','x-axis','y-axis','z-axis']
     data = pd.read_csv(filePath,header = None, names=columnNames,na_values=';')
+    data['activity'] = data['activity'].str.lower()
     return data
 # defining a function for feature normalization
 # (feature - mean)/stdiv
@@ -90,6 +91,8 @@ output_prefix = sys.argv[2] # har
 window_size = int(sys.argv[3]) # 90
 all_data = sys.argv[4] == 'true'
 normalize = sys.argv[5] == 'normalize' if len(sys.argv) > 5 else False
+max_cap = float(sys.argv[6]) if len(sys.argv) > 6 else None
+min_cap = float(sys.argv[7]) if len(sys.argv) > 7 else None
 
 # # # # # # # # #   reading the data   # # # # # # # # # # 
 # Path of file #
@@ -100,6 +103,13 @@ for activity in np.unique(dataset['activity']):
     #plotActivity(activity,subset)
 # segmenting the signal in overlapping windows of 90 samples with 50% overlap
 segments, labels = segment_signal(dataset, window_size=window_size)
+# we need to know the order of he labels right
+unique_labels = []
+for l in labels:
+    if l not in unique_labels:
+        unique_labels.append(l.lower())
+        assert l.lower() in activity_label, l.lower()
+print('Labels', sorted(unique_labels))
 if normalize:
     # (1629, 90, 3)
     #data_abs = np.abs(segments)
@@ -110,14 +120,17 @@ if normalize:
 
     mean_90 = np.abs(np.mean(segments, axis=1, keepdims=True))
     segments = np.where(mean_90 > 6, segments/2, segments)
-# we need to know the order of he labels right
-unique_labels = []
-for l in labels:
-    if l not in unique_labels:
-        unique_labels.append(l.lower())
-        assert l.lower() in activity_label, l.lower()
-
-print('Labels', sorted(unique_labels))
+    print('num of x/y/z mean over 6 is', (mean_90[:, 0] > 6).sum(axis=0))
+    for i in unique_labels:
+        print(f' label {i} mean over 6 is total ', (labels==i).sum(), (mean_90[labels==i, 0] > 6).sum(axis=0))
+if max_cap is not None:
+    for i in unique_labels:
+        print(f' label {i} over {max_cap} is total ', (labels==i).sum(), np.any(segments[labels==i] > max_cap, axis=1).sum(axis=0))
+    segments = np.where(segments > max_cap, max_cap, segments)
+if min_cap is not None:
+    for i in unique_labels:
+        print(f' label {i} below {min_cap} is total ', (labels==i).sum(), np.any(segments[labels==i] < min_cap, axis=1).sum(axis=0))
+    segments = np.where(segments < min_cap, min_cap, segments)
 #categorically defining the classes of the activities
 # we need to know the mapping of string to index
 #labels = np.asarray(pd.get_dummies(labels),dtype = np.int8)
